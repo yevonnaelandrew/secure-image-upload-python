@@ -1,12 +1,33 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 import hashlib
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
+
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def encrypt_file(file_path, key):
+    with open(file_path, 'rb') as file:
+        plaintext = file.read()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(b'16bytesIV0123456'), backend=default_backend())
+
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+
+    with open(file_path, 'wb') as file:
+        file.write(ciphertext)
 
 # In-memory SQLite database for simplicity
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
@@ -51,6 +72,7 @@ def login():
         if user:
             # Login successful
             symmetric_key = create_symmetric_key(password)
+            session['symmetric_key'] = symmetric_key.hex()
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password')
@@ -67,6 +89,32 @@ def register():
         db.session.commit()
         return redirect(url_for('login'))
     return render_template('register.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    if file:
+        username = session.get('username')
+        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username) 
+        if not os.path.exists(user_folder):
+            os.makedirs(user_folder)
+
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(user_folder, filename)
+        file.save(file_path)
+        key = bytes.fromhex(session['symmetric_key'])
+        encrypt_file(file_path, key)
+        return redirect(url_for('dashboard'))
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
