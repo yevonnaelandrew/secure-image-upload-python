@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
 import hashlib
 from cryptography.hazmat.backends import default_backend
@@ -71,6 +71,7 @@ def login():
         user = User.query.filter_by(username=username, password=hashed_password).first()
         if user:
             # Login successful
+            session['username'] = username
             symmetric_key = create_symmetric_key(password)
             session['symmetric_key'] = symmetric_key.hex()
             return redirect(url_for('dashboard'))
@@ -114,7 +115,35 @@ def upload_file():
 
 @app.route('/dashboard')
 def dashboard():
-    return render_template('dashboard.html')
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    if not os.path.exists(user_folder):
+        os.makedirs(user_folder)
+    image_files = [f for f in os.listdir(user_folder) if os.path.isfile(os.path.join(user_folder, f))]
+    file_sizes = {f: os.path.getsize(os.path.join(user_folder, f)) for f in image_files}
+    return render_template('dashboard.html', image_files=image_files, file_sizes=file_sizes)
+
+@app.route('/uploads/<username>/<filename>')
+def download_file(username, filename):
+    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    if not os.path.exists(os.path.join(user_folder, filename)):
+        abort(404)
+    return send_from_directory(user_folder, filename, as_attachment=True)
+
+@app.route('/delete/<filename>')
+def delete_file(filename):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    file_path = os.path.join(user_folder, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

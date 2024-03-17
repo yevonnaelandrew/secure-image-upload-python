@@ -6,6 +6,24 @@
 <body>
     <h1>Welcome to the Dashboard</h1>
     <p>You have successfully logged in.</p>
+    <h2>Your Uploaded Images</h2>
+    <table>
+        <tr>
+            <th>Image</th>
+            <th>Size (Bytes)</th>
+            <th>Actions</th>
+        </tr>
+        {% for file in image_files %}
+        <tr>
+            <td>{{ file }}</td>
+            <td>{{ file_sizes[file] }}</td>
+            <td>
+                <a href="{{ url_for('download_file', filename=file) }}">Download</a> |
+                <a href="{{ url_for('delete_file', filename=file) }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
     <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
         <input type="file" name="file">
         <input type="submit" value="Upload">
@@ -13,3 +31,4 @@
     <a href="{{ url_for('home') }}">Home</a>
 </body>
 </html>
+
