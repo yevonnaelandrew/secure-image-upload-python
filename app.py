@@ -4,6 +4,7 @@ import hashlib
 from io import BytesIO
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from werkzeug.utils import secure_filename
@@ -22,10 +23,12 @@ def encrypt_file(file_path, key):
     with open(file_path, 'rb') as file:
         plaintext = file.read()
 
-    cipher = Cipher(algorithms.AES(key), modes.CBC(b'16bytesIV0123456'), backend=default_backend())
+    padder = padding.PKCS7(128).padder()
+    padded_plaintext = padder.update(plaintext) + padder.finalize()
 
+    cipher = Cipher(algorithms.AES(key), modes.CBC(b'16bytesIV0123456'), backend=default_backend())
     encryptor = cipher.encryptor()
-    ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+    ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
 
     with open(file_path, 'wb') as file:
         file.write(ciphertext)
@@ -36,7 +39,10 @@ def decrypt_file(file_path, key):
 
     cipher = Cipher(algorithms.AES(key), modes.CBC(b'16bytesIV0123456'), backend=default_backend())
     decryptor = cipher.decryptor()
-    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+    padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+    unpadder = padding.PKCS7(128).unpadder()
+    plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
 
     return plaintext
 
@@ -137,12 +143,19 @@ def dashboard():
     file_sizes = {f: os.path.getsize(os.path.join(user_folder, f)) for f in image_files}
     return render_template('dashboard.html', image_files=image_files, file_sizes=file_sizes)
 
-@app.route('/uploads/<username>/<filename>')
-def download_file(username, filename):
+@app.route('/download/<filename>')
+def download_file(filename):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
     user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
-    if not os.path.exists(os.path.join(user_folder, filename)):
-        abort(404)
-    return send_from_directory(user_folder, filename, as_attachment=True)
+    file_path = os.path.join(user_folder, filename)
+    if os.path.exists(file_path):
+        key = bytes.fromhex(session['symmetric_key'])
+        decrypted_content = decrypt_file(file_path, key)
+        return send_file(BytesIO(decrypted_content), download_name=filename, as_attachment=True)
+    return abort(404)
 
 @app.route('/delete/<filename>')
 def delete_file(filename):
