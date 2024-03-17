@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, abort, send_file
 from flask_sqlalchemy import SQLAlchemy
 import hashlib
+from io import BytesIO
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -28,6 +29,16 @@ def encrypt_file(file_path, key):
 
     with open(file_path, 'wb') as file:
         file.write(ciphertext)
+
+def decrypt_file(file_path, key):
+    with open(file_path, 'rb') as file:
+        ciphertext = file.read()
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(b'16bytesIV0123456'), backend=default_backend())
+    decryptor = cipher.decryptor()
+    plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+    return plaintext
 
 # In-memory SQLite database for simplicity
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
@@ -144,6 +155,20 @@ def delete_file(filename):
     if os.path.exists(file_path):
         os.remove(file_path)
     return redirect(url_for('dashboard'))
+
+@app.route('/image/<filename>')
+def get_image(filename):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    file_path = os.path.join(user_folder, filename)
+    if os.path.exists(file_path):
+        key = bytes.fromhex(session['symmetric_key'])
+        decrypted_image = decrypt_file(file_path, key)
+        return send_file(BytesIO(decrypted_image), mimetype='image/jpeg')
+    return abort(404)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

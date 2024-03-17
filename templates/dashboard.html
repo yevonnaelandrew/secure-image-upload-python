@@ -9,12 +9,14 @@
     <h2>Your Uploaded Images</h2>
     <table>
         <tr>
+            <th>Thumbnail</th>
             <th>Image</th>
             <th>Size (Bytes)</th>
             <th>Actions</th>
         </tr>
         {% for file in image_files %}
         <tr>
+            <td><img src="{{ url_for('get_image', filename=file) }}" alt="{{ file }}" width="100"></td>
             <td>{{ file }}</td>
             <td>{{ file_sizes[file] }}</td>
             <td>
@@ -31,4 +33,3 @@
     <a href="{{ url_for('home') }}">Home</a>
 </body>
 </html>
-
