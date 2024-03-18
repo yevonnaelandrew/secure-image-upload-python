@@ -16,7 +16,7 @@ A Flask web application for securely uploading and managing images.
 Please check our [live version here](https://secureupload.yevonnaelandrew.com/).
 
 <div align="center">
-    <img src="./diagram.png" alt="Diagram" width="50%">
+    <img src="./diagram.png" alt="Diagram" width="70%">
 </div>
 
 ## Installation
