@@ -77,14 +77,14 @@
                 <th>Size (Bytes)</th>
                 <th>Actions</th>
             </tr>
-            {% for file in image_files %}
+            {% for file in files %}
             <tr>
-                <td><img src="{{ url_for('get_image', filename=file) }}" alt="{{ file }}" width="100"></td>
-                <td>{{ file }}</td>
-                <td>{{ file_sizes[file] }}</td>
+                <td><img src="{{ url_for('get_image', filename=file.filename) }}" alt="{{ file.filename }}" width="100"></td>
+                <td>{{ file.filename }}</td>
+                <td>{{ file_sizes[file.filename] }}</td>
                 <td>
-                    <a href="{{ url_for('download_file', filename=file) }}">Download</a> |
-                    <a href="{{ url_for('delete_file', filename=file) }}">Delete</a>
+                    <a href="{{ url_for('download_file', filename=file.filename) }}">Download</a> |
+                    <a href="{{ url_for('delete_file', filename=file.filename) }}">Delete</a>
                 </td>
             </tr>
             {% endfor %}

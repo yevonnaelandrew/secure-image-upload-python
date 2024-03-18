@@ -64,6 +64,12 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
 
+class File(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('files', lazy=True))
+
 with app.app_context():
     db.create_all()
 
@@ -139,11 +145,16 @@ def upload_file():
         file.save(file_path)
         key = bytes.fromhex(session['symmetric_key'])
         encrypt_file(file_path, key)
+
+        user = User.query.filter_by(username=session['username']).first()
+        new_file = File(filename=filename, user=user)
+        db.session.add(new_file)
+        db.session.commit()
+
         return redirect(url_for('dashboard'))
     else:
-        flash('File type not allowed')
+        flash('File type not allowed or file size exceeded')
         return redirect(request.url)
-
 
 @app.route('/dashboard')
 def dashboard():
@@ -151,12 +162,10 @@ def dashboard():
         return redirect(url_for('login'))
 
     username = session['username']
-    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
-    if not os.path.exists(user_folder):
-        os.makedirs(user_folder)
-    image_files = [f for f in os.listdir(user_folder) if os.path.isfile(os.path.join(user_folder, f))]
-    file_sizes = {f: os.path.getsize(os.path.join(user_folder, f)) for f in image_files}
-    return render_template('dashboard.html', image_files=image_files, file_sizes=file_sizes)
+    user = User.query.filter_by(username=username).first()
+    user_files = user.files  # Get files associated with the current user
+    file_data = {file.filename: os.path.getsize(os.path.join(app.config['UPLOAD_FOLDER'], username, file.filename)) for file in user_files}
+    return render_template('dashboard.html', files=user_files, file_sizes=file_data)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -164,17 +173,23 @@ def download_file(filename):
         return redirect(url_for('login'))
 
     username = session['username']
-    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
-    file_path = os.path.join(user_folder, filename)
-    if os.path.exists(file_path):
+    user = User.query.filter_by(username=username).first()
+    file = File.query.filter_by(filename=filename, user=user).first()
+
+    if file:
+        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+        file_path = os.path.join(user_folder, filename)
         key = bytes.fromhex(session['symmetric_key'])
         decrypted_content = decrypt_file(file_path, key)
         return send_file(BytesIO(decrypted_content), download_name=filename, as_attachment=True)
-    return abort(404)
+    else:
+        flash('Unauthorized access or file not found')
+        return redirect(url_for('dashboard'))
 
 @app.route('/delete/<filename>')
 def delete_file(filename):
     if 'username' not in session:
+        flash('Please log in to delete files.')
         return redirect(url_for('login'))
 
     username = session['username']
@@ -182,11 +197,15 @@ def delete_file(filename):
     file_path = os.path.join(user_folder, filename)
     if os.path.exists(file_path):
         os.remove(file_path)
+        flash('File deleted successfully.')
+    else:
+        flash('File not found.')
     return redirect(url_for('dashboard'))
 
 @app.route('/image/<filename>')
 def get_image(filename):
     if 'username' not in session:
+        flash('Please log in to view images.')
         return redirect(url_for('login'))
 
     username = session['username']
@@ -196,7 +215,9 @@ def get_image(filename):
         key = bytes.fromhex(session['symmetric_key'])
         decrypted_image = decrypt_file(file_path, key)
         return send_file(BytesIO(decrypted_image), mimetype='image/jpeg')
-    return abort(404)
+    else:
+        flash('Image not found.')
+        return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
