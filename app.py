@@ -164,8 +164,17 @@ def dashboard():
     username = session['username']
     user = User.query.filter_by(username=username).first()
     user_files = user.files  # Get files associated with the current user
-    file_data = {file.filename: os.path.getsize(os.path.join(app.config['UPLOAD_FOLDER'], username, file.filename)) for file in user_files}
+    
+    file_data = {}
+    for file in user_files:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], username, file.filename)
+        if os.path.exists(file_path):
+            file_data[file.filename] = os.path.getsize(file_path)
+        else:
+            file_data[file.filename] = 'File not found'
+
     return render_template('dashboard.html', files=user_files, file_sizes=file_data)
+
 
 @app.route('/download/<filename>')
 def download_file(filename):

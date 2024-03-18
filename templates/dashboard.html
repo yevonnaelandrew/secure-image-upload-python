@@ -56,6 +56,9 @@
         form input[type="submit"]:hover {
             background-color: #47a0a2;
         }
+        .error-message {
+            color: red;
+        }
         a {
             color: #333;
             text-decoration: none;
@@ -90,10 +93,36 @@
             {% endfor %}
         </table>
         <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-            <input type="file" name="file">
+            <input type="file" name="file" id="fileInput">
+            <span class="error-message" id="fileError"></span>
             <input type="submit" value="Upload">
         </form>
         <a href="{{ url_for('home') }}">Home</a>
     </div>
+    <script>
+        document.getElementById('fileInput').addEventListener('change', validateFile);
+        document.querySelector('form').addEventListener('submit', function(event) {
+            var fileInput = document.getElementById('fileInput');
+            if (fileInput.value === '') {
+                event.preventDefault();
+                document.getElementById('fileError').textContent = 'Please select a file to upload.';
+            }
+        });
+
+        function validateFile(event) {
+            var file = event.target.files[0];
+            var errorElement = document.getElementById('fileError');
+
+            if (file && file.size > 3145728) { // 3 MB
+                errorElement.textContent = 'File size exceeds the limit of 3 MB.';
+                event.target.value = ''; // Clear the file input
+            } else if (file && !['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+                errorElement.textContent = 'File type not allowed.';
+                event.target.value = ''; // Clear the file input
+            } else {
+                errorElement.textContent = ''; // Clear any previous error message
+            }
+        }
+    </script>
 </body>
 </html>
