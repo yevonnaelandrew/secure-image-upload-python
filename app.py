@@ -202,13 +202,22 @@ def delete_file(filename):
         return redirect(url_for('login'))
 
     username = session['username']
-    user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
-    file_path = os.path.join(user_folder, filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        flash('File deleted successfully.')
+    user = User.query.filter_by(username=username).first()
+    file = File.query.filter_by(filename=filename, user=user).first()
+
+    if file:
+        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+        file_path = os.path.join(user_folder, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            db.session.delete(file)  # Delete the file record from the database
+            db.session.commit()
+            flash('File deleted successfully.')
+        else:
+            flash('File not found.')
     else:
-        flash('File not found.')
+        flash('Unauthorized access or file not found.')
+
     return redirect(url_for('dashboard'))
 
 @app.route('/image/<filename>')
@@ -227,6 +236,16 @@ def get_image(filename):
     else:
         flash('Image not found.')
         return redirect(url_for('dashboard'))
+
+@app.route('/faq')
+def faq():
+    return render_template('faq.html')
+
+@app.route('/logout')
+def logout():
+    session.clear() 
+    flash('You have been logged out.')
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

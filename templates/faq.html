@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FAQ - Secure Image Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            overflow: hidden;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #50a3a2;
+        }
+        p {
+            margin-bottom: 20px;
+        }
+        a {
+            color: #333;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Frequently Asked Questions (FAQ)</h1>
+        
+        <h2>How do I register for an account?</h2>
+        <p>To register, simply click on the "Register" link on the homepage, fill in your desired username and password, and submit the form.</p>
+
+        <h2>How do I upload an image?</h2>
+        <p>After logging in, you will be taken to your dashboard. Click the "Choose File" button to select an image from your device.</p>
+
+        <h2>What types of image files can I upload?</h2>
+        <p>You can upload images in the following formats: JPG, PNG, and GIF.</p>
+
+        <h2>Is there a limit to the size of the images I can upload?</h2>
+        <p>Yes, the maximum file size for uploaded images is 3 MB.</p>
+
+        <h2>How are my images stored securely?</h2>
+        <p>Your images are encrypted before being stored on the server. This means that even if someone were to gain unauthorized access to the server, they would not be able to view your images without the encryption key.</p>
+
+        <a href="{{ url_for('home') }}">Back to Home</a>
+    </div>
+</body>
+</html>
