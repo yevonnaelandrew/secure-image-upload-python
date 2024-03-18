@@ -16,6 +16,13 @@ app.secret_key = 'secret_key'
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_FILE_SIZE = 3 * 1024 * 1024  # 3 MB
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -117,9 +124,13 @@ def upload_file():
     if file.filename == '':
         flash('No selected file')
         return redirect(request.url)
-    if file:
+    if file and allowed_file(file.filename):
+        if file.content_length > MAX_FILE_SIZE:
+            flash('File size exceeds the limit of 3 MB')
+            return redirect(request.url)
+
         username = session.get('username')
-        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username) 
+        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
         if not os.path.exists(user_folder):
             os.makedirs(user_folder)
 
@@ -129,6 +140,10 @@ def upload_file():
         key = bytes.fromhex(session['symmetric_key'])
         encrypt_file(file_path, key)
         return redirect(url_for('dashboard'))
+    else:
+        flash('File type not allowed')
+        return redirect(request.url)
+
 
 @app.route('/dashboard')
 def dashboard():
